@@ -1,0 +1,24 @@
+library(Gviz)
+library(rtracklayer)
+library(trackViewer)
+
+SNP <- c(3037,14408,23403,246622,28311)  #POSITIONS WHERE SNPS ARE SEEN (change)
+sample.gr <- GRanges("chr1", IRanges(SNP, width=1, names=rbind("C3037T(8)","C14408T(12)","A23403G(8)",
+                                                               "T24622C(78)","C28311T(47)"))) #WIDTH AND NAMING OF SNP(WIDTH SHOULD ALWAYS BE 1) (change)
+sample.gr$color <- sample.int(1, length(SNP), replace=TRUE) #CHANGE COLOR OF NODE
+#label.parameter.gp.blue <- gpar(col="blue")
+#label.parameter.gp.red <- gpar(col="red")
+#sample.gr$label.parameter.gp <- sample(list(label.parameter.gp.blue,
+#                                            label.parameter.gp.red),
+#                                    replace = TRUE)# TO COLOR THE TIPS OF THE TEXT
+sample.gr$border <- sample(c("gray80", "gray30"), length(SNP), replace=TRUE)#BORDER COLOR
+sample.gr$alpha <- sample(100:255, length(SNP), replace = TRUE)/255
+sample.gr$score <- sample.int(20, length(sample.gr), replace=TRUE)#SCORE FOR NODE POSITION
+
+features <- GRanges("chr1", IRanges(c(1, 266, 21536,25393,26245,26523,27202,27394,27894,28274,29558,29675), 
+                                    width=c(264,21289,3815,827,227,668,185,365,365,1259,116,228),
+                                    names=rbind("5'UTR","ORF1ab","S","ORF3a","E","M","ORF6","ORF7a","ORF8","N","ORF10","3'UTR")))#COV GENOME SEQUENCE BLOCKING AND NAMING (change)
+features$fill <- c("#996633","#33FFFF","#FFFF33","#00CCCC","#FFCC00","#CC9900","#33FFCC","#00FFCC","#00FFFF","#FFFF33","#66FFCC","#996633")#COLOR OF BLOCKS should match no. of blocks
+#xaxis <- c(1,21569,25393,26245,26523,27202,27394,27864,28274,29558,29675) #EDITITNG X AXIS VALUES
+features$height <- c(0.04)#,0.08,0.06,0.08,0.06,0.06,0.08,0.08,0.08,0.06,0.08,0.02)# TO ALTER WIDTH OF DIFFERENT BLOCKS
+lolliplot(sample.gr, features, ylab="No. of Patients") # PLOTTING THE LOLLIPOP PLOTs
