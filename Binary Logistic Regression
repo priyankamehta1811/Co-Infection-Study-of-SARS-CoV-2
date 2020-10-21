@@ -1,0 +1,99 @@
+getwd()
+setwd("C:/Users/RPlab/Documents/coinfection/")
+library(mlbench)
+library(MASS)
+library(pROC)
+library(ggplot2)
+
+
+df<-read.csv("coinfection data.csv", header= TRUE)
+str(df)
+newdata <- df[,c("Respiratory.Support","RdRp","SPO2","Bacterial.infection.","Hospital.stay.in.days","Age","Gender")]
+table(newdata$Respiratory.Support)
+newdata2<-na.omit(newdata)#removing NA values
+summary(newdata)
+str(newdata)
+
+round(cor(df),digits = 2)
+
+
+
+## Let's analyze the distribution of each independent variable:
+par(mfrow = c(2,1))
+for( i in 2:4){
+  hist(newdata[,i], main = colnames(newdata)[i],xlab = colnames(newdata)[i], col = 'pink')
+#  ggplot(newdata[,i], main = colnames(newdata)[i],xlab = colnames(newdata)[i],aes(x = rating, fill = type)) +
+#    geom_density(alpha = .3) + #alpha used for filling the density
+#    geom_vline(data = newdata, aes(xintercept = newdata[i], colour = type),
+#               linetype = "longdash", size=1)
+}
+str(newdata)
+
+
+#creating bucket for highly skewed data
+newdata$Age_bucket <-as.factor(ifelse(newdata$Age<=30,"20-30",ifelse(newdata$Age<=40,"31-40",ifelse(newdata$Age<=50,"41-50",
+                                                                                                    ifelse(newdata$Age<=60,"61-70","80+")))))
+newdata$RdRp_bucket<-as.factor(ifelse(newdata$RdRp<=20,"10-20",ifelse(newdata$RdRp<=30,"21-30","40+")))
+
+#For continuous independent variables, we can get more clarity on the distribution by analyzing it w.r.t. dependent variable.
+par(mfrow = c(3,1))# create partition on for plotting
+boxplot(E~Respiratory.Support, ylab="E", xlab= "RespiratorySupport", col="light blue",data = newdata)
+boxplot(AGE~Respiratory.Support, ylab="AGE", xlab= "RespiratorySupport", col="light blue",data = newdata)
+boxplot(RdRp~Respiratory.Support, ylab="RdRp", xlab= "RespiratorySupport", col="light blue",data = newdata)
+#boxplot(Bacterial.infection.~Respiratory.Support, ylab="Bacterial.infection.", xlab= "RespiratorySupport", col="light blue",data = newdata)
+#boxplot(viral.infection.~Respiratory.Support, ylab="viral infection.", xlab= "RespiratorySupport", col="light blue",data = newdata)
+
+
+#For categorical independent variables, we can analyze the frequency of each category w.r.t. the dependent variable
+xtabs(~Respiratory.Support + , data = newdata)
+xtabs(~Respiratory.Support + RdRp_bucket, data = newdata)
+xtabs(~Respiratory.Support + Hospital.stay.in.days, data = newdata)
+xtabs(~Respiratory.Support + , data = newdata)
+xtabs(~Respiratory.Support + sob, data = newdata)
+
+#We'll now create a new data frame of relevant modeling variables.
+#newdata2 <- newdata[,c("Respiratory.Support","Age", "N","E","RdRp","Bacterial.infection.")]
+newdata2 <- newdata[,c("Respiratory.Support","RdRp","Bacterial.infection.","Hospital.stay.in.days")]
+
+#Implementation of Logistic Regression to predict the binary outcome 
+logit_1 <- glm(Respiratory.Support~., family = binomial,data = newdata2)
+#Analysis of Model Summary
+summary(logit_1)
+#The 'stepAIC' function in R performs a stepwise model selection with an objective to minimize the AIC value.
+logit_2 <- stepAIC(logit_1)
+vif(logit_2)
+summary(logit_2)
+#To analyze the predicted probability of having the value of "Respiratorysupoort" as "pos"
+summary(logit_2$fitted.values)
+#analyze the distribution of predicted probability of 'pos' RespiratorySupport
+hist(logit_2$fitted.values,main = " Histogram ",xlab = "Probability of 'pos' Respiratory Support", col = 'light green')
+
+
+
+#Let's now classify the prediction as "pos" if the fitted value exceeds 0.5 otherwise "neg"
+newdata$Predict <- ifelse(logit_2$fitted.values >0.5,"yes","no")
+
+#########Model Performance Evaluation
+####AIC
+
+logit_1$aic
+logit_2$aic
+# Create Test Data
+test_ones <- input_ones[-input_ones_training_rows, ]
+test_zeros <- input_zeros[-input_zeros_training_rows, ]
+testData <- rbind(test_ones, test_zeros)  # row bind the 1's and 0's 
+predicted <- plogis(predict(logit_1, testData)) 
+#####Confusion Matrix
+mytable <- table(newdata2$Respiratory.Support,newdata2$Respiratory.Support)
+rownames(mytable) <- c("Obs. neg","Obs. pos")
+colnames(mytable) <- c("Pred. neg","Pred. pos")
+mytable
+efficiency <- sum(diag(mytable))/sum(mytable)
+efficiency
+##### ROC Curve and Area under curve(auc)
+roc(Respiratory.Support~logit_1$fitted.values, data = newdata2, plot = TRUE, main = "ROC CURVE", col= "blue")
+auc(Respiratory.Support~logit_1$fitted.values, data = newdata2)
+
+roc(Respiratory.Support~logit_2$fitted.values, data = newdata2, plot = TRUE, main = "ROC CURVE", col= "blue")
+auc(Respiratory.Support~logit_2$fitted.values, data = newdata2)
+plotROC(testData$Respiratory.Support, predicted)
